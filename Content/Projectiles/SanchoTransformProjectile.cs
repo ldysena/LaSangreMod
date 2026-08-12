@@ -38,9 +38,9 @@ namespace SanchoLanceMod.Content.Projectiles
 
 		private enum AttackStage // What stage of the attack is being executed, see functions found in AI for description
 		{
-			Prepare,
-			Execute,
-			Unwind
+			Prepare, // Transform
+			Execute, // Swing
+			Unwind // Pose
 		}
 
 		// These properties wrap the usual ai and localAI arrays for cleaner and easier to understand code.
@@ -69,14 +69,15 @@ namespace SanchoLanceMod.Content.Projectiles
 		private float execTime => 12f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
 		private float hideTime => 12f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
 
-		public override string Texture => "SanchoLanceMod/Content/Projectiles/SanchoLanceProjectile"; // Use texture of item as projectile texture
+		public override string Texture => "SanchoLanceMod/Content/Projectiles/SanchoLanceEnhancedProjectile"; // Use texture of item as projectile texture
 		private Player Owner => Main.player[Projectile.owner];
 
 		public override void SetStaticDefaults() {
 			ProjectileID.Sets.HeldProjDoesNotUsePlayerGfxOffY[Type] = true;
 		}
 
-		public override void SetDefaults() {
+		public override void SetDefaults() 
+        {
 			Projectile.width = 128; // Hitbox width of projectile
 			Projectile.height = 128; // Hitbox height of projectile
 			Projectile.friendly = true; // Projectile hits enemies
@@ -86,7 +87,8 @@ namespace SanchoLanceMod.Content.Projectiles
 			Projectile.usesLocalNPCImmunity = true; // Uses local immunity frames
 			Projectile.localNPCHitCooldown = -1; // We set this to -1 to make sure the projectile doesn't hit twice
 			Projectile.ownerHitCheck = true; // Make sure the owner of the projectile has line of sight to the target (aka can't hit things through tile).
-			Projectile.DamageType = DamageClass.Melee; // Projectile is a melee projectile
+			Projectile.DamageType = DamageClass.MeleeNoSpeed; // Projectile is a melee projectile
+            Projectile.scale = 1.1f;
 		}
 
 		public override void OnSpawn(IEntitySource source) {
@@ -152,21 +154,23 @@ namespace SanchoLanceMod.Content.Projectiles
 			Timer++;
 		}
 
-		public override bool PreDraw(ref Color lightColor) {
+		public override bool PreDraw(ref Color lightColor) 
+        {
 			// Calculate origin of sword (hilt) based on orientation and offset sword rotation (as sword is angled in its sprite)
-			Vector2 origin;
+			int handleOffset = 33; // Used to move the handle so we hold it at the right position
+            Vector2 origin;
 			float rotationOffset;
 			SpriteEffects effects;
 
-			if (Projectile.spriteDirection > 0) {
-				origin = new Vector2(0, Projectile.height);
+			if (Projectile.spriteDirection > 0) { // Right
+				origin = new Vector2(10 + handleOffset, Projectile.height - handleOffset); // idk why adding 10 makes terrarian hold the handle correctly
 				rotationOffset = MathHelper.ToRadians(45f);
-				effects = SpriteEffects.None;
-			}
-			else {
-				origin = new Vector2(Projectile.width, Projectile.height);
-				rotationOffset = MathHelper.ToRadians(135f);
 				effects = SpriteEffects.FlipHorizontally;
+			}
+			else { 
+				origin = new Vector2(Projectile.width - handleOffset, Projectile.height - handleOffset);
+				rotationOffset = MathHelper.ToRadians(135f);
+				effects = SpriteEffects.None;
 			}
 
 			Texture2D texture = ModContent.Request<Texture2D>(Texture).Value;
