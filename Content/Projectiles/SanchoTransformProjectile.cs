@@ -19,7 +19,7 @@ namespace SanchoLanceMod.Content.Projectiles
 		// We define some constants that determine the swing range of the sword
 		// Not that we use multipliers here since that simplifies the amount of tweaks for these interactions
 		// You could change the values or even replace them entirely, but they are tweaked with looks in mind
-		private const float SWINGRANGE = 1.67f * (float)Math.PI; // The angle a swing attack covers (300 deg)
+		private const float SWINGRANGE = 1.15f * (float)Math.PI; // The angle a swing attack covers (300 deg)
 		private const float FIRSTHALFSWING = 0.45f; // How much of the swing happens before it reaches the target angle (in relation to swingRange)
 		private const float SPINRANGE = 3.5f * (float)Math.PI; // The angle a spin attack covers (630 degrees)
 		private const float WINDUP = 0.15f; // How far back the player's hand goes when winding their attack (in relation to swingRange)
@@ -65,7 +65,7 @@ namespace SanchoLanceMod.Content.Projectiles
 
 		// We define timing functions for each stage, taking into account melee attack speed
 		// Note that you can change this to suit the need of your projectile
-		private float prepTime => 12f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
+		private float prepTime => 24f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
 		private float execTime => 12f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
 		private float hideTime => 12f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
 
@@ -91,28 +91,12 @@ namespace SanchoLanceMod.Content.Projectiles
             Projectile.scale = 1.1f;
 		}
 
-		public override void OnSpawn(IEntitySource source) {
-			Projectile.spriteDirection = Main.MouseWorld.X > Owner.MountedCenter.X ? 1 : -1;
-			float targetAngle = (Main.MouseWorld - Owner.MountedCenter).ToRotation();
-
-			if (CurrentAttack == AttackType.Spin) {
-				InitialAngle = (float)(-Math.PI / 2 - Math.PI * 1 / 3 * Projectile.spriteDirection); // For the spin, starting angle is designated based on direction of hit
-			}
-			else {
-				if (Projectile.spriteDirection == 1) {
-					// However, we limit the rangle of possible directions so it does not look too ridiculous
-					targetAngle = MathHelper.Clamp(targetAngle, (float)-Math.PI * 1 / 3, (float)Math.PI * 1 / 6);
-				}
-				else {
-					if (targetAngle < 0) {
-						targetAngle += 2 * (float)Math.PI; // This makes the range continuous for easier operations
-					}
-
-					targetAngle = MathHelper.Clamp(targetAngle, (float)Math.PI * 5 / 6, (float)Math.PI * 4 / 3);
-				}
-
-				InitialAngle = targetAngle - FIRSTHALFSWING * SWINGRANGE * Projectile.spriteDirection; // Otherwise, we calculate the angle
-			}
+		public override void OnSpawn(IEntitySource source) 
+        {
+			Projectile.spriteDirection = Main.MouseWorld.X > Owner.MountedCenter.X ? 1 : -1; // Sets direction based on mouse... do we want it set based on player direction???
+			//InitialAngle = (float)(-Math.PI / 2 - Math.PI * 1 / 3 * Projectile.spriteDirection); // Starting angle is designated based on direction of hit
+            //InitialAngle = (float)(Math.PI / 2 + Math.PI / 6 * Projectile.spriteDirection);
+            InitialAngle = (float)(Math.PI / 2 - Math.PI * 2 / 5 * Projectile.spriteDirection);
 		}
 
 		public override void SendExtraAI(BinaryWriter writer) {
@@ -222,15 +206,17 @@ namespace SanchoLanceMod.Content.Projectiles
 
 			armPosition.Y += Owner.gfxOffY;
 			Projectile.Center = armPosition; // Set projectile to arm position
-			Projectile.scale = Size * 1.2f * Owner.GetAdjustedItemScale(Owner.HeldItem); // Slightly scale up the projectile and also take into account melee size modifiers
+			//Projectile.scale = Size * 1.2f * Owner.GetAdjustedItemScale(Owner.HeldItem); // Slightly scale up the projectile and also take into account melee size modifiers
 
 			Owner.heldProj = Projectile.whoAmI; // set held projectile to this projectile
 		}
 
 		// Function facilitating the taking out of the sword
 		private void PrepareStrike() {
-			Progress = WINDUP * SWINGRANGE * (1f - Timer / prepTime); // Calculates rotation from initial angle
+			//Progress = WINDUP * SWINGRANGE * (1f - Timer / prepTime); // Calculates rotation from initial angle
 			Size = MathHelper.SmoothStep(0, 1, Timer / prepTime); // Make sword slowly increase in size as we prepare to strike until it reaches max
+
+            // TODO: Write code animating transformation
 
 			if (Timer >= prepTime) {
 				SoundEngine.PlaySound(SoundID.Item1); // Play sword sound here since playing it on spawn is too early
@@ -265,6 +251,7 @@ namespace SanchoLanceMod.Content.Projectiles
 		private void UnwindStrike() {
 			if (CurrentAttack == AttackType.Swing) {
 				Progress = MathHelper.SmoothStep(0, SWINGRANGE, (1f - UNWIND) + UNWIND * Timer / hideTime);
+                //Progress = SWINGRANGE;
 				Size = 1f - MathHelper.SmoothStep(0, 1, Timer / hideTime); // Make sword slowly decrease in size as we end the swing to make a smooth hiding animation
 
 				if (Timer >= hideTime) {
