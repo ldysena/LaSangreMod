@@ -65,11 +65,15 @@ namespace SanchoLanceMod.Content.Projectiles
 
 		// We define timing functions for each stage, taking into account melee attack speed
 		// Note that you can change this to suit the need of your projectile
-		private float prepTime => 24f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
+		private float prepTime => 100f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
 		private float execTime => 12f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
 		private float hideTime => 12f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
 
-		public override string Texture => "SanchoLanceMod/Content/Projectiles/SanchoLanceEnhancedProjectile"; // Use texture of item as projectile texture
+        private int currentFrame = 17; // For animating the spritesheet
+        private const float lastFrame = 17;
+
+        //public override string Texture => "SanchoLanceMod/Content/Projectiles/SanchoLanceEnhancedProjectile";
+		public override string Texture => "SanchoLanceMod/Content/Projectiles/transform_projectile"; // Use texture of item as projectile texture
 		private Player Owner => Main.player[Projectile.owner];
 
 		public override void SetStaticDefaults() {
@@ -78,8 +82,8 @@ namespace SanchoLanceMod.Content.Projectiles
 
 		public override void SetDefaults() 
         {
-			Projectile.width = 128; // Hitbox width of projectile
-			Projectile.height = 128; // Hitbox height of projectile
+			Projectile.width = 150; // Hitbox width of projectile
+			Projectile.height = 150; // Hitbox height of projectile
 			Projectile.friendly = true; // Projectile hits enemies
 			Projectile.timeLeft = 10000; // Time it takes for projectile to expire
 			Projectile.penetrate = -1; // Projectile pierces infinitely
@@ -88,7 +92,7 @@ namespace SanchoLanceMod.Content.Projectiles
 			Projectile.localNPCHitCooldown = -1; // We set this to -1 to make sure the projectile doesn't hit twice
 			Projectile.ownerHitCheck = true; // Make sure the owner of the projectile has line of sight to the target (aka can't hit things through tile).
 			Projectile.DamageType = DamageClass.MeleeNoSpeed; // Projectile is a melee projectile
-            Projectile.scale = 1.1f;
+            Projectile.scale = 1.0f;
 		}
 
 		public override void OnSpawn(IEntitySource source) 
@@ -141,13 +145,13 @@ namespace SanchoLanceMod.Content.Projectiles
 		public override bool PreDraw(ref Color lightColor) 
         {
 			// Calculate origin of sword (hilt) based on orientation and offset sword rotation (as sword is angled in its sprite)
-			int handleOffset = 33; // Used to move the handle so we hold it at the right position
+			int handleOffset = 44; // Used to move the handle so we hold it at the right position
             Vector2 origin;
 			float rotationOffset;
 			SpriteEffects effects;
 
 			if (Projectile.spriteDirection > 0) { // Right
-				origin = new Vector2(10 + handleOffset, Projectile.height - handleOffset); // idk why adding 10 makes terrarian hold the handle correctly
+				origin = new Vector2(handleOffset, Projectile.height - handleOffset); // idk why adding 10 makes terrarian hold the handle correctly
 				rotationOffset = MathHelper.ToRadians(45f);
 				effects = SpriteEffects.FlipHorizontally;
 			}
@@ -158,8 +162,8 @@ namespace SanchoLanceMod.Content.Projectiles
 			}
 
 			Texture2D texture = ModContent.Request<Texture2D>(Texture).Value;
-
-			Main.spriteBatch.Draw(texture, Projectile.Center - Main.screenPosition, default, lightColor * Projectile.Opacity, Projectile.rotation + rotationOffset, origin, Projectile.scale, effects, 0);
+            Rectangle sprite = new Rectangle(currentFrame * Projectile.width, 0, Projectile.width, Projectile.height); // TODO: Better naming convention for currentFrame & spriteFrame
+			Main.spriteBatch.Draw(texture, Projectile.Center - Main.screenPosition, sprite, lightColor * Projectile.Opacity, Projectile.rotation + rotationOffset, origin, Projectile.scale, effects, 0);
 
 			// Since we are doing a custom draw, prevent it from normally drawing
 			return false;
