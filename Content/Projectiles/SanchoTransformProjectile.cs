@@ -38,9 +38,10 @@ namespace SanchoLanceMod.Content.Projectiles
 
 		private enum AttackStage // What stage of the attack is being executed, see functions found in AI for description
 		{
-			Prepare, // Transform
+			Transform, // Transform
 			Execute, // Swing
-			Unwind // Pose
+			Unwind, // Pose
+            Pose
 		}
 
 		// These properties wrap the usual ai and localAI arrays for cleaner and easier to understand code.
@@ -65,12 +66,13 @@ namespace SanchoLanceMod.Content.Projectiles
 
 		// We define timing functions for each stage, taking into account melee attack speed
 		// Note that you can change this to suit the need of your projectile
-		private float prepTime => 100f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
-		private float execTime => 12f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
-		private float hideTime => 12f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
+		private float transTime => 50f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
+		private float execTime => 14f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
+		private float hideTime => 6f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
+        private float poseTime => 30f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
 
-        private int currentFrame = 17; // For animating the spritesheet
-        private const float lastFrame = 17;
+        private int currentFrame = 0; // For animating the spritesheet
+        private const float numFrames = 17;
 
         //public override string Texture => "SanchoLanceMod/Content/Projectiles/SanchoLanceEnhancedProjectile";
 		public override string Texture => "SanchoLanceMod/Content/Projectiles/transform_projectile"; // Use texture of item as projectile texture
@@ -127,15 +129,18 @@ namespace SanchoLanceMod.Content.Projectiles
 			// Note that these stages are to facilitate the scaling effect at the beginning and end
 			// If this is not desireable for you, feel free to simplify
 			switch (CurrentStage) {
-				case AttackStage.Prepare:
-					PrepareStrike();
+				case AttackStage.Transform:
+					TransformWeapon();
 					break;
 				case AttackStage.Execute:
 					ExecuteStrike();
 					break;
-				default:
+				case AttackStage.Unwind:
 					UnwindStrike();
 					break;
+                default:
+                    PoseAfterStrike();
+                    break;
 			}
 
 			SetSwordPosition();
@@ -152,13 +157,32 @@ namespace SanchoLanceMod.Content.Projectiles
 
 			if (Projectile.spriteDirection > 0) { // Right
 				origin = new Vector2(handleOffset, Projectile.height - handleOffset); // idk why adding 10 makes terrarian hold the handle correctly
-				rotationOffset = MathHelper.ToRadians(45f);
-				effects = SpriteEffects.FlipHorizontally;
+
+                if (CurrentStage >= AttackStage.Unwind)
+                {
+                    rotationOffset = MathHelper.ToRadians(315f); // TODO MAKE THIS NOT HOLD WIERDLY
+                    effects = SpriteEffects.None;
+                }
+                else
+                {
+                    rotationOffset = MathHelper.ToRadians(45f);
+                    effects = SpriteEffects.FlipHorizontally;
+                }
+				
 			}
 			else { 
 				origin = new Vector2(Projectile.width - handleOffset, Projectile.height - handleOffset);
-				rotationOffset = MathHelper.ToRadians(135f);
-				effects = SpriteEffects.None;
+				
+				if (CurrentStage >= AttackStage.Unwind)
+                {
+                    rotationOffset = MathHelper.ToRadians(225f);
+                    effects = SpriteEffects.FlipHorizontally;
+                }
+                else
+                {
+                    rotationOffset = MathHelper.ToRadians(135f);
+                    effects = SpriteEffects.None;
+                }
 			}
 
 			Texture2D texture = ModContent.Request<Texture2D>(Texture).Value;
@@ -186,7 +210,7 @@ namespace SanchoLanceMod.Content.Projectiles
 
 		// We make it so that the projectile can only do damage in its release and unwind phases
 		public override bool? CanDamage() {
-			if (CurrentStage == AttackStage.Prepare)
+			if (CurrentStage == AttackStage.Transform)
 				return false;
 			return base.CanDamage();
 		}
@@ -207,7 +231,7 @@ namespace SanchoLanceMod.Content.Projectiles
 			// Set composite arm allows you to set the rotation of the arm and stretch of the front and back arms independently
 			Owner.SetCompositeArmFront(true, Player.CompositeArmStretchAmount.Full, Projectile.rotation - MathHelper.ToRadians(90f)); // set arm position (90 degree offset since arm starts lowered)
 			Vector2 armPosition = Owner.GetFrontHandPosition(Player.CompositeArmStretchAmount.Full, Projectile.rotation - (float)Math.PI / 2); // get position of hand
-
+            // TODO: Use this to make her arm not fucking break
 			armPosition.Y += Owner.gfxOffY;
 			Projectile.Center = armPosition; // Set projectile to arm position
 			//Projectile.scale = Size * 1.2f * Owner.GetAdjustedItemScale(Owner.HeldItem); // Slightly scale up the projectile and also take into account melee size modifiers
@@ -216,13 +240,15 @@ namespace SanchoLanceMod.Content.Projectiles
 		}
 
 		// Function facilitating the taking out of the sword
-		private void PrepareStrike() {
+		private void TransformWeapon() {
 			//Progress = WINDUP * SWINGRANGE * (1f - Timer / prepTime); // Calculates rotation from initial angle
-			Size = MathHelper.SmoothStep(0, 1, Timer / prepTime); // Make sword slowly increase in size as we prepare to strike until it reaches max
+			Size = MathHelper.SmoothStep(0, 1, Timer / transTime); // Make sword slowly increase in size as we prepare to strike until it reaches max
 
             // TODO: Write code animating transformation
+            if (Timer % 3 == 0 && currentFrame < numFrames) { currentFrame++; }
 
-			if (Timer >= prepTime) {
+			if (Timer >= transTime) 
+            {
 				SoundEngine.PlaySound(SoundID.Item1); // Play sword sound here since playing it on spawn is too early
 				CurrentStage = AttackStage.Execute; // If attack is over prep time, we go to next stage
 			}
@@ -259,7 +285,7 @@ namespace SanchoLanceMod.Content.Projectiles
 				Size = 1f - MathHelper.SmoothStep(0, 1, Timer / hideTime); // Make sword slowly decrease in size as we end the swing to make a smooth hiding animation
 
 				if (Timer >= hideTime) {
-					Projectile.Kill();
+					CurrentStage = AttackStage.Pose;
 				}
 			}
 			else {
@@ -271,5 +297,13 @@ namespace SanchoLanceMod.Content.Projectiles
 				}
 			}
 		}
-	}
+
+        private void PoseAfterStrike()
+        {
+            if (Timer >= poseTime) 
+            {
+				Projectile.Kill();
+			}
+        }
+    }
 }
