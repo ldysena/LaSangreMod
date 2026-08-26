@@ -19,7 +19,9 @@ namespace SanchoLanceMod.Content.Projectiles
 		// We define some constants that determine the swing range of the sword
 		// Not that we use multipliers here since that simplifies the amount of tweaks for these interactions
 		// You could change the values or even replace them entirely, but they are tweaked with looks in mind
-		private const float SWINGRANGE = 1.15f * (float)Math.PI; // The angle a swing attack covers (300 deg)
+
+		//private const float SWINGRANGE = 1.15f * (float)Math.PI; // The angle a swing attack covers (300 deg)
+        private const float SWINGRANGE = (float)Math.PI; // The angle a swing attack covers (300 deg)
 		private const float FIRSTHALFSWING = 0.45f; // How much of the swing happens before it reaches the target angle (in relation to swingRange)
 		private const float SPINRANGE = 3.5f * (float)Math.PI; // The angle a spin attack covers (630 degrees)
 		private const float WINDUP = 0.15f; // How far back the player's hand goes when winding their attack (in relation to swingRange)
@@ -36,13 +38,8 @@ namespace SanchoLanceMod.Content.Projectiles
 			Spin,
 		}
 
-		private enum AttackStage // What stage of the attack is being executed, see functions found in AI for description
-		{
-			Transform, // Transform
-			Execute, // Swing
-			Unwind, // Pose
-            Pose
-		}
+        // What stage of the attack is being executed, see functions found in AI for description
+		private enum AttackStage { Transform, Execute, Unwind, Pose }
 
 		// These properties wrap the usual ai and localAI arrays for cleaner and easier to understand code.
 		private AttackType CurrentAttack {
@@ -66,10 +63,10 @@ namespace SanchoLanceMod.Content.Projectiles
 
 		// We define timing functions for each stage, taking into account melee attack speed
 		// Note that you can change this to suit the need of your projectile
-		private float transTime => 50f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
-		private float execTime => 14f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
+		private float transTime => 60f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
+		private float execTime => 9f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
 		private float hideTime => 6f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
-        private float poseTime => 30f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
+        private float poseTime => 50f / Owner.GetTotalAttackSpeed(Projectile.DamageType);
 
         private int currentFrame = 0; // For animating the spritesheet
         private const float numFrames = 17;
@@ -77,6 +74,9 @@ namespace SanchoLanceMod.Content.Projectiles
         //public override string Texture => "SanchoLanceMod/Content/Projectiles/SanchoLanceEnhancedProjectile";
 		public override string Texture => "SanchoLanceMod/Content/Projectiles/transform_projectile"; // Use texture of item as projectile texture
 		private Player Owner => Main.player[Projectile.owner];
+
+        public SoundStyle transformSFX = new SoundStyle("SanchoLanceMod/Assets/Sounds/transformswing") with { Volume = 0.7f };
+        public SoundStyle reverbSFX = new SoundStyle("SanchoLanceMod/Assets/Sounds/transformreverb") with { Volume = 0.7f };
 
 		public override void SetStaticDefaults() {
 			ProjectileID.Sets.HeldProjDoesNotUsePlayerGfxOffY[Type] = true;
@@ -103,6 +103,8 @@ namespace SanchoLanceMod.Content.Projectiles
 			//InitialAngle = (float)(-Math.PI / 2 - Math.PI * 1 / 3 * Projectile.spriteDirection); // Starting angle is designated based on direction of hit
             //InitialAngle = (float)(Math.PI / 2 + Math.PI / 6 * Projectile.spriteDirection);
             InitialAngle = (float)(Math.PI / 2 - Math.PI * 2 / 5 * Projectile.spriteDirection);
+
+            SoundEngine.PlaySound(transformSFX);
 		}
 
 		public override void SendExtraAI(BinaryWriter writer) {
@@ -155,31 +157,33 @@ namespace SanchoLanceMod.Content.Projectiles
 			float rotationOffset;
 			SpriteEffects effects;
 
-			if (Projectile.spriteDirection > 0) { // Right
-				origin = new Vector2(handleOffset, Projectile.height - handleOffset); // idk why adding 10 makes terrarian hold the handle correctly
-
-                if (CurrentStage >= AttackStage.Unwind)
+			if (Projectile.spriteDirection > 0) // Right
+            { 
+                if (CurrentStage >= AttackStage.Unwind) // We flip the sprite once the swing slows down b/c it swaps direction
                 {
-                    rotationOffset = MathHelper.ToRadians(315f); // TODO MAKE THIS NOT HOLD WIERDLY
+                    origin = new Vector2(Projectile.width - handleOffset, Projectile.height - handleOffset);
+                    rotationOffset = MathHelper.ToRadians(135f);
                     effects = SpriteEffects.None;
                 }
                 else
                 {
+                    origin = new Vector2(handleOffset, Projectile.height - handleOffset);
                     rotationOffset = MathHelper.ToRadians(45f);
                     effects = SpriteEffects.FlipHorizontally;
                 }
 				
 			}
-			else { 
-				origin = new Vector2(Projectile.width - handleOffset, Projectile.height - handleOffset);
-				
+			else 
+            { 
 				if (CurrentStage >= AttackStage.Unwind)
                 {
-                    rotationOffset = MathHelper.ToRadians(225f);
+                    origin = new Vector2(handleOffset, Projectile.height - handleOffset);
+                    rotationOffset = MathHelper.ToRadians(45f);
                     effects = SpriteEffects.FlipHorizontally;
                 }
                 else
                 {
+                    origin = new Vector2(Projectile.width - handleOffset, Projectile.height - handleOffset);
                     rotationOffset = MathHelper.ToRadians(135f);
                     effects = SpriteEffects.None;
                 }
@@ -249,18 +253,22 @@ namespace SanchoLanceMod.Content.Projectiles
 
 			if (Timer >= transTime) 
             {
-				SoundEngine.PlaySound(SoundID.Item1); // Play sword sound here since playing it on spawn is too early
+				//SoundEngine.PlaySound(SoundID.Item1); // Play sword sound here since playing it on spawn is too early
 				CurrentStage = AttackStage.Execute; // If attack is over prep time, we go to next stage
+                SoundEngine.PlaySound(reverbSFX);
 			}
 		}
 
 		// Function facilitating the first half of the swing
-		private void ExecuteStrike() {
+		private void ExecuteStrike() 
+        {
 			if (CurrentAttack == AttackType.Swing) {
 				Progress = MathHelper.SmoothStep(0, SWINGRANGE, (1f - UNWIND) * Timer / execTime);
 
-				if (Timer >= execTime) {
+				if (Timer >= execTime) 
+                {
 					CurrentStage = AttackStage.Unwind;
+                    
 				}
 			}
 			else {
@@ -284,7 +292,8 @@ namespace SanchoLanceMod.Content.Projectiles
                 //Progress = SWINGRANGE;
 				Size = 1f - MathHelper.SmoothStep(0, 1, Timer / hideTime); // Make sword slowly decrease in size as we end the swing to make a smooth hiding animation
 
-				if (Timer >= hideTime) {
+				if (Timer >= hideTime) 
+                {
 					CurrentStage = AttackStage.Pose;
 				}
 			}
@@ -292,7 +301,8 @@ namespace SanchoLanceMod.Content.Projectiles
 				Progress = MathHelper.SmoothStep(0, SPINRANGE, (1f - UNWIND / 2) + UNWIND / 2 * Timer / (hideTime * SPINTIME / 2));
 				Size = 1f - MathHelper.SmoothStep(0, 1, Timer / (hideTime * SPINTIME / 2));
 
-				if (Timer >= hideTime * SPINTIME / 2) {
+				if (Timer >= hideTime * SPINTIME / 2) 
+                {
 					Projectile.Kill();
 				}
 			}

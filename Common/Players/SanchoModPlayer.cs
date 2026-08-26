@@ -20,7 +20,7 @@ namespace SanchoLanceMod.Common.Players
 		public bool readyToEnhance = false; // Flag to check when Hardblood is full
 		public bool isEnhanced = false; // Flag to check if SanchoLance is currently enhanced
 
-		public SoundStyle enhanceBeginSFX = new SoundStyle("SanchoLanceMod/Assets/Sounds/enhancesound") with { Volume = 0.7f };
+		//public SoundStyle enhanceBeginSFX = new SoundStyle("SanchoLanceMod/Assets/Sounds/enhancesound") with { Volume = 0.7f };
 		public SoundStyle enhanceEndSFX = new SoundStyle("SanchoLanceMod/Assets/Sounds/enhanceend") with { Volume = 0.7f };
 		public SoundStyle enhanceReadySFX = new SoundStyle("SanchoLanceMod/Assets/Sounds/enhanceready") with { Volume = 0.7f };
 
@@ -33,12 +33,14 @@ namespace SanchoLanceMod.Common.Players
 			{ 
 				isEnhanced = true; 
 				readyToEnhance = false;
-				SoundEngine.PlaySound(enhanceBeginSFX);
+				//SoundEngine.PlaySound(enhanceBeginSFX);
                 return true;
 			}
-            
-            // TODO: SFX for right clicking when NOT ready?
-            return false;
+            else
+            {
+                // TODO: SFX for right clicking when NOT ready?
+                return false;
+            }
 		}
 
 		/// <summary>
